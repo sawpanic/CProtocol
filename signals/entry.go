@@ -9,6 +9,7 @@ type GateInputs struct{
     RSI4h float64
     Accel4h float64
     VADR float64
+    Ret24h float64
     SpreadBps float64
     DepthUSD2pc float64
     TriggerPrice float64
@@ -42,14 +43,10 @@ func EvaluateGates(in GateInputs) GateResult {
         if in.Now.Sub(in.SignalTime) > 30*time.Second { /* ok for slice: we consider signal fresh by caller */ }
     }
     // Fatigue guard: 24h > +12% AND RSI>70 unless accel>0 (approx using 4h bars)
-    if in.RSI4h > 70 {
-        // If we had 24h bars, we'd compute; slice assumes caller ensures reasonable
-        if in.Accel4h <= 0 { /* allow for slice; could block here */ }
-    }
+    if in.RSI4h > 70 && in.Ret24h > 0.12 && in.Accel4h <= 0 { return GateResult{Reason:"fatigue: 24h>+12% & RSI>70 no accel"} }
     // Spread gate
     if in.SpreadBps >= 50 { return GateResult{Reason: "spread >= 50bps"} }
     // Depth gate
     if in.DepthUSD2pc < 100_000 { return GateResult{Reason: "depth@2% < $100k"} }
     return GateResult{Pass: true}
 }
-

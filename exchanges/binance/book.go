@@ -12,6 +12,7 @@ import (
     "time"
 
     "github.com/gorilla/websocket"
+    "github.com/sawpanic/CProtocol/monitor"
 )
 
 type OrderbookMetrics struct {
@@ -72,7 +73,9 @@ func (b *book) run() {
             var m struct{ Bids [][]string `json:"b"`; Asks [][]string `json:"a"` }
             if err := json.Unmarshal(msg, &m); err != nil { continue }
             b.applyDiff(m.Bids, m.Asks)
-            b.recordLatency(time.Since(t0))
+            d := time.Since(t0)
+            b.recordLatency(d)
+            monitor.SetBinanceP99(b.metrics().LatencyP99Ms)
         }
         time.Sleep(1 * time.Second)
     }

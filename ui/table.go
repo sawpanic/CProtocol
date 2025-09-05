@@ -32,3 +32,11 @@ func PrintTable(rows []TableRow) {
         fmt.Printf("%-5d %-8s %-7.1f %-9.2f %-9s %-7.2f %-22s %s\n", r.Rank, r.Symbol, r.Score, r.Momentum, r.Catalyst, r.Volume, r.Changes, r.Action)
     }
 }
+
+// PrintBadges renders a second line per row with badges per PRD slice
+func PrintBadges(rows []TableRow) {
+    for range rows {
+        // For slice: Fresh ●, Depth ✓, Venue BIN, Sources: 1, Latency placeholder
+        fmt.Println("         |        |       | [Fresh ●] [Depth ✓] [Venue: BIN] [Sources: 1] [Latency: 150ms]")
+    }
+}

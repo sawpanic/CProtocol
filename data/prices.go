@@ -10,6 +10,7 @@ import (
     "time"
 
     "github.com/sawpanic/CProtocol/data/cache"
+    "github.com/sawpanic/CProtocol/monitor"
 )
 
 type Prices struct{ c cache.Cache }
@@ -33,7 +34,9 @@ func (p *Prices) Klines(ctx context.Context, venue, symbol, window string, limit
     q.Set("interval", inter)
     q.Set("limit", fmt.Sprintf("%d", limit))
     req, _ := http.NewRequestWithContext(ctx, http.MethodGet, api+"?"+q.Encode(), nil)
+    t0 := time.Now()
     resp, err := http.DefaultClient.Do(req)
+    monitor.IncCall(time.Since(t0), err)
     if err != nil { return nil, nil, err }
     defer resp.Body.Close()
     var rows [][]any
@@ -60,4 +63,3 @@ func (p *Prices) ChangePct(ctx context.Context, venue, symbol, interval string) 
     if len(closes) < 2 { return 0, nil }
     return closes[len(closes)-1]/closes[len(closes)-2] - 1, nil
 }
-
