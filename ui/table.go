@@ -22,6 +22,11 @@ type TableRow struct {
     Changes string // "1h/4h/12h/24h/7d"
     Action  string
     Met     any
+    Fresh   bool
+    DepthOK bool
+    Venue   string
+    Sources int
+    LatencyMs int64
 }
 
 func PrintTable(rows []TableRow) {
@@ -35,8 +40,13 @@ func PrintTable(rows []TableRow) {
 
 // PrintBadges renders a second line per row with badges per PRD slice
 func PrintBadges(rows []TableRow) {
-    for range rows {
-        // For slice: Fresh ●, Depth ✓, Venue BIN, Sources: 1, Latency placeholder
-        fmt.Println("         |        |       | [Fresh ●] [Depth ✓] [Venue: BIN] [Sources: 1] [Latency: 150ms]")
+    for _, r := range rows {
+        fresh := "○"
+        if r.Fresh { fresh = "●" }
+        depth := "✗"
+        if r.DepthOK { depth = "✓" }
+        venue := r.Venue
+        if venue == "" { venue = "BIN" }
+        fmt.Printf("         |        |       | [Fresh %s] [Depth %s] [Venue: %s] [Sources: %d] [Latency: %dms]\n", fresh, depth, venue, r.Sources, r.LatencyMs)
     }
 }

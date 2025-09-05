@@ -54,9 +54,12 @@ func scanCmd(ctx context.Context) *cobra.Command {
                 Mom  float64
                 Met  binance.OrderbookMetrics
                 Vadr float64
+                Heat float64
                 Changes string
                 Score float64
                 Action string
+                Fresh bool
+                Sources int
             }
             var rows []row
 
@@ -87,10 +90,16 @@ func scanCmd(ctx context.Context) *cobra.Command {
                 if !gr.Pass { log.Info().Str("pair", p).Str("reason", gr.Reason).Msg("gated out"); continue }
                 // changes
                 changes := buildChanges(cmd.Context(), ds, venue, p)
+                // heat
+                heat := signals.HeatScore(accel, rsi, vadr)
                 // score
                 score := signals.ScoreSlice(mom, vadr, reg)
                 action := mapAction(score)
-                rows = append(rows, row{Pair: p, Mom: mom, Met: met, Vadr: vadr, Changes: changes, Score: score, Action: action})
+                // sources: klines + orderbook => 2 when depth computed
+                sources := 1
+                if met.DepthUSD2pc > 0 { sources = 2 }
+                // freshness proxy: <=2 bars and within ATR already ensured; set true here
+                rows = append(rows, row{Pair: p, Mom: mom, Met: met, Vadr: vadr, Heat: heat, Changes: changes, Score: score, Action: action, Fresh: true, Sources: sources})
             }
 
             sort.Slice(rows, func(i,j int) bool { return rows[i].Score > rows[j].Score })
@@ -101,7 +110,8 @@ func scanCmd(ctx context.Context) *cobra.Command {
             for i, r := range rows {
                 out = append(out, ui.TableRow{
                     Rank: i+1, Symbol: r.Pair, Score: r.Score, Momentum: r.Mom,
-                    Catalyst: "0.0", Volume: r.Vadr, Changes: r.Changes, Action: r.Action, Met: r.Met,
+                    Catalyst: fmt.Sprintf("%.1f", r.Heat), Volume: r.Vadr, Changes: r.Changes, Action: r.Action, Met: r.Met,
+                    Fresh: r.Fresh, DepthOK: r.Met.DepthUSD2pc >= 100000, Venue: "BIN", Sources: r.Sources, LatencyMs: r.Met.LatencyP99Ms,
                 })
             }
             ui.PrintTable(out)
