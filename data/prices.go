@@ -53,3 +53,11 @@ func (p *Prices) Klines(ctx context.Context, venue, symbol, window string, limit
     return close, vols, nil
 }
 
+// ChangePct fetches 2 bars for the interval and returns % change between last and previous.
+func (p *Prices) ChangePct(ctx context.Context, venue, symbol, interval string) (float64, error) {
+    closes, _, err := p.Klines(ctx, venue, symbol, interval, 2)
+    if err != nil { return 0, err }
+    if len(closes) < 2 { return 0, nil }
+    return closes[len(closes)-1]/closes[len(closes)-2] - 1, nil
+}
+

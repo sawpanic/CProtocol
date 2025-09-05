@@ -50,7 +50,10 @@ func scanCmd(ctx context.Context) *cobra.Command {
                 Pair string
                 Mom  float64
                 Met  binance.OrderbookMetrics
-                Badges []string
+                Vadr float64
+                Changes string
+                Score float64
+                Action string
             }
             var rows []row
 
@@ -77,24 +80,26 @@ func scanCmd(ctx context.Context) *cobra.Command {
                     TriggerPrice: signals.Last(closes), Now: time.Now(), SignalTime: time.Now().Add(-10*time.Second),
                 })
                 if !gr.Pass { log.Info().Str("pair", p).Str("reason", gr.Reason).Msg("gated out"); continue }
-                // badges
-                badges := []string{
-                    fmt.Sprintf("spread=%.1fbps", met.SpreadBps),
-                    fmt.Sprintf("depth@2%%=$%.0fk", met.DepthUSD2pc/1000),
-                    fmt.Sprintf("vadr=%.2fx", vadr),
-                    fmt.Sprintf("fresh<=2bars"),
-                }
-                rows = append(rows, row{Pair: p, Mom: mom, Met: met, Badges: badges})
+                // changes
+                changes := buildChanges(cmd.Context(), ds, venue, p)
+                // score
+                score := signals.ScoreSlice(mom, vadr, reg)
+                action := "BUY"
+                rows = append(rows, row{Pair: p, Mom: mom, Met: met, Vadr: vadr, Changes: changes, Score: score, Action: action})
             }
 
-            sort.Slice(rows, func(i,j int) bool { return rows[i].Mom > rows[j].Mom })
+            sort.Slice(rows, func(i,j int) bool { return rows[i].Score > rows[j].Score })
             if limit > 0 && len(rows) > limit { rows = rows[:limit] }
 
             ui.PrintHeader(reg, 1, 1)
-            // adapt rows
-            tmp := make([]struct{ Pair string; Mom float64; Met any; Badges []string }, len(rows))
-            for i, r := range rows { tmp[i] = struct{ Pair string; Mom float64; Met any; Badges []string }{Pair:r.Pair, Mom:r.Mom, Met:r.Met, Badges:r.Badges} }
-            ui.PrintTable(tmp)
+            out := make([]ui.TableRow, 0, len(rows))
+            for i, r := range rows {
+                out = append(out, ui.TableRow{
+                    Rank: i+1, Symbol: r.Pair, Score: r.Score, Momentum: r.Mom,
+                    Catalyst: "—", Volume: r.Vadr, Changes: r.Changes, Action: r.Action, Met: r.Met,
+                })
+            }
+            ui.PrintTable(out)
             return nil
         },
     }
@@ -110,4 +115,16 @@ func parsePairs(s string) []string {
     out := make([]string,0,len(v))
     for _, x := range v { x = strings.TrimSpace(x); if x != "" { out = append(out, strings.ToUpper(x)) } }
     return out
+}
+
+func buildChanges(ctx context.Context, ds *data.Prices, venue, sym string) string {
+    // Map 7d to 1w, 24h to 1d
+    type pair struct{ label, interval string }
+    req := []pair{{"1h","1h"},{"4h","4h"},{"12h","12h"},{"24h","1d"},{"7d","1w"}}
+    parts := make([]string, 0, len(req))
+    for _, r := range req {
+        ch, err := ds.ChangePct(ctx, venue, sym, r.interval)
+        if err != nil { parts = append(parts, "?") } else { parts = append(parts, fmt.Sprintf("%.2f%%", ch*100)) }
+    }
+    return strings.Join(parts, "/")
 }

@@ -2,33 +2,33 @@ package ui
 
 import (
     "fmt"
-    "github.com/sawpanic/CProtocol/exchanges/binance"
 )
 
 func PrintHeader(regime string, healthy, total int) {
     fmt.Printf("MOMENTUM SIGNALS (6-48h Opportunities) | Regime: %s | APIs: %d/%d Healthy\n", regime, healthy, total)
-    fmt.Println("═════════════════════════════════════════════════════════════════════════════")
+    fmt.Println("─────────────────────────────────────────────────────────────────────────────")
 }
 
 type Row interface{}
 
 // PrintTable renders a simple table used by scan.go
-func PrintTable(rows []struct{ Pair string; Mom float64; Met any; Badges []string }) {
-    fmt.Printf("%-4s %-10s %-10s %-16s %s\n", "#", "PAIR", "MOMENTUM", "SPREAD/DEPTH", "BADGES")
-    for i, r := range rows {
-        var spread, depth string
-        switch m := r.Met.(type) {
-        case binance.OrderbookMetrics:
-            spread = fmt.Sprintf("%.1fbps", m.SpreadBps)
-            depth = fmt.Sprintf("$%.0fk", m.DepthUSD2pc/1000)
-        default:
-            // try to format using known binance type via type assertion
-            if bm, ok := r.Met.(interface{ Get() (float64,float64) }); ok {
-                s,d := bm.Get(); spread = fmt.Sprintf("%.1fbps", s); depth = fmt.Sprintf("$%.0fk", d/1000)
-            } else {
-                spread = "?bps"; depth = "$?"
-            }
-        }
-        fmt.Printf("%-4d %-10s %-10.2f %-16s %s\n", i+1, r.Pair, r.Mom, spread+"/"+depth, fmt.Sprintf("%v", r.Badges))
+type TableRow struct {
+    Rank   int
+    Symbol string
+    Score  float64
+    Momentum float64
+    Catalyst string
+    Volume float64 // VADR
+    Changes string // "1h/4h/12h/24h/7d"
+    Action  string
+    Met     any
+}
+
+func PrintTable(rows []TableRow) {
+    fmt.Printf("%-5s %-8s %-7s %-9s %-9s %-7s %-22s %s\n", "Rank", "Symbol", "Score", "Momentum", "Catalyst", "Volume", "Change%", "Action")
+    fmt.Printf("%s\n", "          |        | 0-100 | Core     | Heat     | VADR   | 1h/4h/12h/24h/7d    |")
+    fmt.Println("─────────────────────────────────────────────────────────────────────────────")
+    for _, r := range rows {
+        fmt.Printf("%-5d %-8s %-7.1f %-9.2f %-9s %-7.2f %-22s %s\n", r.Rank, r.Symbol, r.Score, r.Momentum, r.Catalyst, r.Volume, r.Changes, r.Action)
     }
 }
